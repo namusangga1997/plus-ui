@@ -1,6 +1,6 @@
-import { MessageBoxData } from 'element-plus';
-import { LoadingInstance } from 'element-plus/es/components/loading/src/loading';
-let loadingInstance: LoadingInstance;
+import type { LoadingInstance, MessageBoxData } from 'element-plus';
+
+let loadingInstance: LoadingInstance | undefined;
 export default {
   // 消息提示
   msg(content: any) {
@@ -71,11 +71,11 @@ export default {
     loadingInstance = ElLoading.service({
       lock: true,
       text: content,
-      background: 'rgba(0, 0, 0, 0.7)'
+      background: 'var(--app-overlay-mask)'
     });
   },
   // 关闭遮罩层
   closeLoading() {
-    loadingInstance.close();
+    loadingInstance?.close();
   }
 };

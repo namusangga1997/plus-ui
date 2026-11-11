@@ -1,15 +1,16 @@
-import { DeptTreeVO } from './../dept/types';
-import { RoleVO } from '@/api/system/role/types';
+import type { RoleVO } from '@/api/system/role/types';
+import type { PageResult } from '@/api/types';
+import type { AxiosPromise } from '@/utils/api-types';
 import request from '@/utils/request';
-import { AxiosPromise } from 'axios';
-import { UserForm, UserQuery, UserVO, UserInfoVO } from './types';
 import { parseStrEmpty } from '@/utils/ruoyi';
+import type { DeptTreeVO } from './../dept/types';
+import type { UserForm, UserInfoVO, UserProfileForm, UserQuery, UserVO } from './types';
 
 /**
  * 查询用户列表
  * @param query
  */
-export const listUser = (query: UserQuery): AxiosPromise<UserVO[]> => {
+export const listUser = (query: UserQuery): AxiosPromise<PageResult<UserVO>> => {
   return request({
     url: '/system/user/list',
     method: 'get',
@@ -111,6 +112,17 @@ export const changeUserStatus = (userId: number | string, status: string) => {
 };
 
 /**
+ * 解锁用户
+ * @param userId 用户ID
+ */
+export const unlockUser = (userId: number | string) => {
+  return request({
+    url: '/system/user/unlock/' + userId,
+    method: 'get'
+  });
+};
+
+/**
  * 查询用户个人信息
  */
 export const getUserProfile = (): AxiosPromise<UserInfoVO> => {
@@ -124,7 +136,7 @@ export const getUserProfile = (): AxiosPromise<UserInfoVO> => {
  * 修改用户个人信息
  * @param data 用户信息
  */
-export const updateUserProfile = (data: UserForm) => {
+export const updateUserProfile = (data: UserProfileForm) => {
   return request({
     url: '/system/user/profile',
     method: 'put',
@@ -149,18 +161,6 @@ export const updateUserPwd = (oldPassword: string, newPassword: string) => {
       isEncrypt: true,
       repeatSubmit: false
     },
-    data: data
-  });
-};
-
-/**
- * 用户头像上传
- * @param data 头像文件
- */
-export const uploadAvatar = (data: FormData) => {
-  return request({
-    url: '/system/user/profile/avatar',
-    method: 'post',
     data: data
   });
 };
@@ -218,10 +218,10 @@ export default {
   delUser,
   resetUserPwd,
   changeUserStatus,
+  unlockUser,
   getUserProfile,
   updateUserProfile,
   updateUserPwd,
-  uploadAvatar,
   getAuthRole,
   updateAuthRole,
   deptTreeSelect,

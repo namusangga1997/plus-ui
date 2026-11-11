@@ -16,6 +16,7 @@ declare module 'vue-router' {
     roles?: string[];
     alwaysShow?: boolean;
     query?: string;
+    ext?: string;
     parentPath?: string;
   }
 
@@ -34,5 +35,3 @@ declare module 'vue-router' {
     query?: LocationQuery;
   }
 }
-
-export {};

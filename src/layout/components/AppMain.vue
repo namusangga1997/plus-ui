@@ -12,33 +12,29 @@
 </template>
 
 <script setup name="AppMain" lang="ts">
+import animateConfig from '@/animate';
+import { useFullHeightTable } from '@/hooks/table/useFullHeightTable';
 import { useSettingsStore } from '@/store/modules/settings';
 import { useTagsViewStore } from '@/store/modules/tagsView';
-
 import IframeToggle from './IframeToggle/index.vue';
-const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+
 const route = useRoute();
 const tagsViewStore = useTagsViewStore();
+useFullHeightTable();
 
 // 随机动画集合
 const animate = ref<string>('');
-const animationEnable = ref(useSettingsStore().animationEnable);
 watch(
   () => useSettingsStore().animationEnable,
   (val: boolean) => {
-    animationEnable.value = val;
     if (val) {
-      animate.value = proxy?.animate.animateList[Math.round(Math.random() * proxy?.animate.animateList.length)] as string;
+      animate.value = animateConfig.animateList[Math.floor(Math.random() * animateConfig.animateList.length)] as string;
     } else {
-      animate.value = proxy?.animate.defaultAnimate as string;
+      animate.value = animateConfig.defaultAnimate as string;
     }
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  addIframe();
-});
 
 watchEffect(() => {
   addIframe();
@@ -53,26 +49,37 @@ function addIframe() {
 
 <style lang="scss" scoped>
 .app-main {
-  /* 50= navbar  50  */
-  min-height: calc(100vh - 50px);
+  min-height: 100vh;
   width: 100%;
   position: relative;
   overflow: hidden;
+  padding: 12px;
+
+  &:fullscreen,
+  &:-webkit-full-screen,
+  &:-moz-full-screen,
+  &:-ms-fullscreen {
+    background: var(--el-bg-color);
+    overflow-y: auto;
+  }
 }
 
-.fixed-header + .app-main {
-  padding-top: 50px;
+.app-main:not(.with-fixed-header) {
+  min-height: calc(100vh - 64px);
 }
 
-.hasTagsView {
-  .app-main {
-    /* 84 = navbar + tags-view = 50 + 34 */
-    min-height: calc(100vh - 84px);
-  }
+.app-main.with-tags-view:not(.with-fixed-header) {
+  min-height: calc(100vh - 105px);
+}
 
-  .fixed-header + .app-main {
-    padding-top: 84px;
-  }
+.app-main.with-fixed-header {
+  padding-top: 76px;
+  min-height: calc(100vh - 76px);
+}
+
+.app-main.with-fixed-header.with-tags-view {
+  min-height: calc(100vh - 111px);
+  padding-top: 111px;
 }
 </style>
 <style lang="scss">
@@ -89,11 +96,11 @@ function addIframe() {
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #f1f1f1;
+  background-color: var(--el-fill-color-lighter);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #c0c0c0;
-  border-radius: 3px;
+  background-color: var(--el-text-color-placeholder);
+  border-radius: 999px;
 }
 </style>

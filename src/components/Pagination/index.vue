@@ -15,8 +15,8 @@
 </template>
 
 <script setup name="Pagination" lang="ts">
-import { scrollTo } from '@/utils/scroll-to';
 import { propTypes } from '@/utils/propTypes';
+import { scrollTo } from '@/utils/scroll-to';
 
 const props = defineProps({
   total: propTypes.number,
@@ -68,8 +68,15 @@ function handleCurrentChange(val: number) {
 
 <style lang="scss" scoped>
 .pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 10px;
+  margin-top: 18px;
+  border-top: 1px solid var(--app-surface-border);
+
   .el-pagination {
-    float: v-bind(float);
+    float: none;
   }
 }
 .pagination-container.hidden {

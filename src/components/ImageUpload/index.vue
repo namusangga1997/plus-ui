@@ -7,6 +7,7 @@
       list-type="picture-card"
       :on-success="handleUploadSuccess"
       :before-upload="handleBeforeUpload"
+      :data="uploadData"
       :limit="limit"
       :accept="fileAccept"
       :on-error="handleUploadError"
@@ -26,10 +27,12 @@
     <div v-if="showTip" class="el-upload__tip">
       请上传
       <template v-if="fileSize">
-        大小不超过 <b style="color: #f56c6c">{{ fileSize }}MB</b>
+        大小不超过
+        <b style="color: #f56c6c">{{ fileSize }}MB</b>
       </template>
       <template v-if="fileType">
-        格式为 <b style="color: #f56c6c">{{ fileType.join('/') }}</b>
+        格式为
+        <b style="color: #f56c6c">{{ fileType.join('/') }}</b>
       </template>
       的文件
     </div>
@@ -41,11 +44,12 @@
 </template>
 
 <script setup lang="ts">
+import { compressAccurately } from 'image-conversion';
 import { listByIds, delOss } from '@/api/system/oss';
-import { OssVO } from '@/api/system/oss/types';
+import type { OssVO, SysOssExt } from '@/api/system/oss/types';
+import modal from '@/plugins/modal';
 import { propTypes } from '@/utils/propTypes';
 import { globalHeaders } from '@/utils/request';
-import { compressAccurately } from 'image-conversion';
 
 const props = defineProps({
   modelValue: {
@@ -69,10 +73,14 @@ const props = defineProps({
     default: false
   },
   // 压缩目标大小，单位KB。默认300KB以上文件才压缩，并压缩至300KB以内
-  compressTargetSize: propTypes.number.def(300)
+  compressTargetSize: propTypes.number.def(300),
+  // 上传扩展属性
+  ossExt: {
+    type: Object as PropType<SysOssExt>,
+    default: undefined
+  }
 });
 
-const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const emit = defineEmits(['update:modelValue']);
 const number = ref(0);
 const uploadList = ref<any[]>([]);
@@ -81,15 +89,23 @@ const dialogVisible = ref(false);
 
 const baseUrl = import.meta.env.VITE_APP_BASE_API;
 const uploadImgUrl = ref(baseUrl + '/resource/oss/upload'); // 上传的图片服务器地址
-const headers = ref(globalHeaders());
+const headers = computed(() => globalHeaders());
 
 const fileList = ref<any[]>([]);
 const showTip = computed(() => props.isShowTip && (props.fileType || props.fileSize));
 
 const imageUploadRef = ref<ElUploadInstance>();
 
+// 上传附加数据（ossExt 扩展属性）
+const uploadData = computed(() => {
+  if (!props.ossExt) return {};
+  return {
+    ossExt: JSON.stringify(props.ossExt)
+  }
+});
+
 // 监听 fileType 变化，更新 fileAccept
-const fileAccept = computed(() => props.fileType.map((type) => `.${type}`).join(','));
+const fileAccept = computed(() => props.fileType.map(type => `.${type}`).join(','));
 
 watch(
   () => props.modelValue,
@@ -104,7 +120,7 @@ watch(
         list = res.data;
       }
       // 然后将数组转为对象数组
-      fileList.value = list.map((item) => {
+      fileList.value = list.map(item => {
         // 字符串回显处理 如果此处存的是url可直接回显 如果存的是id需要调用接口查出来
         let itemData;
         if (typeof item === 'string') {
@@ -140,46 +156,50 @@ const handleBeforeUpload = (file: any) => {
     isImg = file.type.indexOf('image') > -1;
   }
   if (!isImg) {
-    proxy?.$modal.msgError(`文件格式不正确, 请上传${props.fileType.join('/')}图片格式文件!`);
+    modal.msgError(`文件格式不正确, 请上传${props.fileType.join('/')}图片格式文件!`);
     return false;
   }
   if (file.name.includes(',')) {
-    proxy?.$modal.msgError('文件名不正确，不能包含英文逗号!');
+    modal.msgError('文件名不正确，不能包含英文逗号!');
     return false;
   }
   if (props.fileSize) {
     const isLt = file.size / 1024 / 1024 < props.fileSize;
     if (!isLt) {
-      proxy?.$modal.msgError(`上传头像图片大小不能超过 ${props.fileSize} MB!`);
+      modal.msgError(`上传头像图片大小不能超过 ${props.fileSize} MB!`);
       return false;
     }
   }
 
   //压缩图片，开启压缩并且大于指定的压缩大小时才压缩
   if (props.compressSupport && file.size / 1024 > props.compressTargetSize) {
-    proxy?.$modal.loading('正在上传图片，请稍候...');
+    modal.loading('正在上传图片，请稍候...');
     number.value++;
     return compressAccurately(file, props.compressTargetSize);
   } else {
-    proxy?.$modal.loading('正在上传图片，请稍候...');
+    modal.loading('正在上传图片，请稍候...');
     number.value++;
   }
 };
 
 // 文件个数超出
 const handleExceed = () => {
-  proxy?.$modal.msgError(`上传文件数量不能超过 ${props.limit} 个!`);
+  modal.msgError(`上传文件数量不能超过 ${props.limit} 个!`);
 };
 
 // 上传成功回调
 const handleUploadSuccess = (res: any, file: UploadFile) => {
   if (res.code === 200) {
-    uploadList.value.push({ name: res.data.fileName, url: res.data.url, ossId: res.data.ossId });
+    uploadList.value.push({
+      name: res.data.fileName,
+      url: res.data.url,
+      ossId: res.data.ossId
+    });
     uploadedSuccessfully();
   } else {
     number.value--;
-    proxy?.$modal.closeLoading();
-    proxy?.$modal.msgError(res.msg);
+    modal.closeLoading();
+    modal.msgError(res.msg);
     imageUploadRef.value?.handleRemove(file);
     uploadedSuccessfully();
   }
@@ -187,7 +207,7 @@ const handleUploadSuccess = (res: any, file: UploadFile) => {
 
 // 删除图片
 const handleDelete = (file: UploadFile): boolean => {
-  const findex = fileList.value.map((f) => f.name).indexOf(file.name);
+  const findex = fileList.value.map(f => f.name).indexOf(file.name);
   if (findex > -1 && uploadList.value.length === number.value) {
     const ossId = fileList.value[findex].ossId;
     delOss(ossId);
@@ -201,18 +221,18 @@ const handleDelete = (file: UploadFile): boolean => {
 // 上传结束处理
 const uploadedSuccessfully = () => {
   if (number.value > 0 && uploadList.value.length === number.value) {
-    fileList.value = fileList.value.filter((f) => f.url !== undefined).concat(uploadList.value);
+    fileList.value = fileList.value.filter(f => f.url !== undefined).concat(uploadList.value);
     uploadList.value = [];
     number.value = 0;
     emit('update:modelValue', listToString(fileList.value));
-    proxy?.$modal.closeLoading();
+    modal.closeLoading();
   }
 };
 
 // 上传失败
 const handleUploadError = () => {
-  proxy?.$modal.msgError('上传图片失败');
-  proxy?.$modal.closeLoading();
+  modal.msgError('上传图片失败');
+  modal.closeLoading();
 };
 
 // 预览

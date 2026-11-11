@@ -1,6 +1,7 @@
+import type { PageResult } from '@/api/types';
+import type { LeaveForm, LeaveQuery, LeaveVO } from '@/api/workflow/leave/types';
+import type { AxiosPromise } from '@/utils/api-types';
 import request from '@/utils/request';
-import { AxiosPromise } from 'axios';
-import { LeaveVO, LeaveQuery, LeaveForm } from '@/api/workflow/leave/types';
 
 /**
  * 查询请假列表
@@ -8,7 +9,7 @@ import { LeaveVO, LeaveQuery, LeaveForm } from '@/api/workflow/leave/types';
  * @returns {*}
  */
 
-export const listLeave = (query?: LeaveQuery): AxiosPromise<LeaveVO[]> => {
+export const listLeave = (query?: LeaveQuery): AxiosPromise<PageResult<LeaveVO>> => {
   return request({
     url: '/workflow/leave/list',
     method: 'get',

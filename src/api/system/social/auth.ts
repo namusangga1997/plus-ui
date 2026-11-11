@@ -1,14 +1,10 @@
 import request from '@/utils/request';
 
-// 绑定账号
-export function authBinding(source: string, tenantId: string) {
+// 获取跳转URL
+export function authRouterUrl(source: string) {
   return request({
     url: '/auth/binding/' + source,
-    method: 'get',
-    params: {
-      tenantId: tenantId,
-      domain: window.location.host
-    }
+    method: 'get'
   });
 }
 

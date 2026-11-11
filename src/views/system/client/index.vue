@@ -1,13 +1,28 @@
 <template>
-  <div class="p-2">
-    <transition :enter-active-class="proxy?.animate.searchAnimate.enter" :leave-active-class="proxy?.animate.searchAnimate.leave">
-      <div v-show="showSearch" class="search">
-        <el-form ref="queryFormRef" :model="queryParams" :inline="true" label-width="85px">
+  <div class="p-2 app-container system-client-page">
+    <div class="search-wrap">
+      <el-card shadow="hover" class="search-panel" :class="{ 'is-collapsed': !showSearch }">
+        <template #header>
+          <div class="panel-heading search-panel-toggle" @click.stop="showSearch = !showSearch">
+            <div><h3>筛选条件</h3></div>
+          </div>
+        </template>
+        <el-form ref="queryFormRef" :model="queryParams" :inline="true" label-width="85px" class="query-form">
           <el-form-item label="客户端key" prop="clientKey">
-            <el-input v-model="queryParams.clientKey" placeholder="请输入客户端key" clearable @keyup.enter="handleQuery" />
+            <el-input
+              v-model="queryParams.clientKey"
+              placeholder="请输入客户端key"
+              clearable
+              @keyup.enter="handleQuery"
+            />
           </el-form-item>
           <el-form-item label="客户端秘钥" prop="clientSecret">
-            <el-input v-model="queryParams.clientSecret" placeholder="请输入客户端秘钥" clearable @keyup.enter="handleQuery" />
+            <el-input
+              v-model="queryParams.clientSecret"
+              placeholder="请输入客户端秘钥"
+              clearable
+              @keyup.enter="handleQuery"
+            />
           </el-form-item>
           <el-form-item label="状态" prop="status">
             <el-select v-model="queryParams.status" placeholder="状态" clearable>
@@ -19,41 +34,62 @@
             <el-button icon="Refresh" @click="resetQuery">重置</el-button>
           </el-form-item>
         </el-form>
-      </div>
-    </transition>
+      </el-card>
+    </div>
 
-    <el-card shadow="never">
+    <el-card shadow="hover" class="table-panel">
       <template #header>
-        <el-row :gutter="10" class="mb8">
-          <el-col :span="1.5">
-            <el-button v-hasPermi="['system:client:add']" type="primary" plain icon="Plus" @click="handleAdd">新增</el-button>
-          </el-col>
-          <el-col :span="1.5">
-            <el-button v-hasPermi="['system:client:edit']" type="success" plain icon="Edit" :disabled="single" @click="handleUpdate()">
+        <div class="toolbar-shell">
+          <div class="table-heading">
+            <h3>客户端列表</h3>
+          </div>
+          <div class="toolbar-actions">
+            <el-button v-hasPermi="['system:client:add']" type="primary" plain icon="Plus" @click="handleAdd">
+              新增
+            </el-button>
+            <el-button
+              v-hasPermi="['system:client:edit']"
+              type="success"
+              plain
+              icon="Edit"
+              :disabled="single"
+              @click="handleUpdate()"
+            >
               修改
             </el-button>
-          </el-col>
-          <el-col :span="1.5">
-            <el-button v-hasPermi="['system:client:remove']" type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()">
+            <el-button
+              v-hasPermi="['system:client:remove']"
+              type="danger"
+              plain
+              icon="Delete"
+              :disabled="multiple"
+              @click="handleDelete()"
+            >
               删除
             </el-button>
-          </el-col>
-          <el-col :span="1.5">
-            <el-button v-hasPermi="['system:client:export']" type="warning" plain icon="Download" @click="handleExport">导出</el-button>
-          </el-col>
-          <right-toolbar v-model:show-search="showSearch" @query-table="getList"></right-toolbar>
-        </el-row>
+            <el-button v-hasPermi="['system:client:export']" type="warning" plain icon="Download" @click="handleExport">
+              导出
+            </el-button>
+            <right-toolbar v-model:show-search="showSearch" :search="false" @query-table="getList"></right-toolbar>
+          </div>
+        </div>
       </template>
 
-      <el-table v-loading="loading" :data="clientList" border @selection-change="handleSelectionChange">
+      <el-table
+        v-loading="loading"
+        :data="clientList"
+        border
+        class="data-table"
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column v-if="true" label="id" align="center" prop="id" />
+        <el-table-column v-if="false" label="id" align="center" prop="id" />
         <el-table-column label="客户端id" align="center" prop="clientId" />
         <el-table-column label="客户端key" align="center" prop="clientKey" />
         <el-table-column label="客户端秘钥" align="center" prop="clientSecret" />
         <el-table-column label="授权类型" align="center">
           <template #default="scope">
-            <dict-tag :options="sys_grant_type" :value="scope.row.grantTypeList" />
+            <dict-tag class="grant-type-tag" :options="sys_grant_type" :value="scope.row.grantTypeList" />
           </template>
         </el-table-column>
         <el-table-column label="设备类型" align="center">
@@ -61,29 +97,87 @@
             <dict-tag :options="sys_device_type" :value="scope.row.deviceType" />
           </template>
         </el-table-column>
+        <el-table-column label="白名单路径" align="center">
+          <template #default="scope">
+            <div class="rule-tag-list">
+              <el-tag
+                v-for="path in getRuleList(scope.row.accessPathList, scope.row.accessPath)"
+                :key="path"
+                size="small"
+                effect="plain"
+              >
+                {{ path }}
+              </el-tag>
+              <span v-if="!getRuleList(scope.row.accessPathList, scope.row.accessPath).length" class="rule-empty">
+                全部路径
+              </span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="白名单IP" align="center">
+          <template #default="scope">
+            <div class="rule-tag-list">
+              <el-tag
+                v-for="ip in getRuleList(scope.row.ipWhitelistList, scope.row.ipWhitelist)"
+                :key="ip"
+                size="small"
+                type="success"
+                effect="plain"
+              >
+                {{ ip }}
+              </el-tag>
+              <span v-if="!getRuleList(scope.row.ipWhitelistList, scope.row.ipWhitelist).length" class="rule-empty">
+                全部IP
+              </span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column label="Token活跃超时时间" align="center" prop="activeTimeout" />
         <el-table-column label="Token固定超时时间" align="center" prop="timeout" />
         <el-table-column key="status" label="状态" align="center">
           <template #default="scope">
-            <el-switch v-model="scope.row.status" active-value="0" inactive-value="1" @change="handleStatusChange(scope.row)"></el-switch>
+            <el-switch
+              v-model="scope.row.status"
+              active-value="0"
+              inactive-value="1"
+              @change="handleStatusChange(scope.row)"
+            ></el-switch>
           </template>
         </el-table-column>
         <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="修改" placement="top">
-              <el-button v-hasPermi="['system:client:edit']" link type="primary" icon="Edit" @click="handleUpdate(scope.row)"></el-button>
+              <el-button
+                v-hasPermi="['system:client:edit']"
+                link
+                type="primary"
+                icon="Edit"
+                @click="handleUpdate(scope.row)"
+              ></el-button>
             </el-tooltip>
             <el-tooltip content="删除" placement="top">
-              <el-button v-hasPermi="['system:client:remove']" link type="primary" icon="Delete" @click="handleDelete(scope.row)"></el-button>
+              <el-button
+                v-hasPermi="['system:client:remove']"
+                link
+                type="primary"
+                icon="Delete"
+                @click="handleDelete(scope.row)"
+              ></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
 
-      <pagination v-show="total > 0" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" :total="total" @pagination="getList" />
+      <pagination
+        v-show="total > 0"
+        v-model:page="queryParams.pageNum"
+        v-model:limit="queryParams.pageSize"
+        :total="total"
+        @pagination="getList"
+      />
     </el-card>
     <!-- 添加或修改客户端管理对话框 -->
-    <el-dialog v-model="dialog.visible" :title="dialog.title" width="500px" append-to-body>
+    <el-dialog v-model="dialog.visible" :title="dialog.title" width="760px" append-to-body>
       <el-form ref="clientFormRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="客户端key" prop="clientKey">
           <el-input v-model="form.clientKey" :disabled="form.id != null" placeholder="请输入客户端key" />
@@ -93,13 +187,53 @@
         </el-form-item>
         <el-form-item label="授权类型" prop="grantTypeList">
           <el-select v-model="form.grantTypeList" multiple placeholder="请输入授权类型">
-            <el-option v-for="dict in sys_grant_type" :key="dict.value" :label="dict.label" :value="dict.value"></el-option>
+            <el-option
+              v-for="dict in sys_grant_type"
+              :key="dict.value"
+              :label="dict.label"
+              :value="dict.value"
+            ></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="设备类型" prop="deviceType">
           <el-select v-model="form.deviceType" placeholder="请输入设备类型">
-            <el-option v-for="dict in sys_device_type" :key="dict.value" :label="dict.label" :value="dict.value"></el-option>
+            <el-option
+              v-for="dict in sys_device_type"
+              :key="dict.value"
+              :label="dict.label"
+              :value="dict.value"
+            ></el-option>
           </el-select>
+        </el-form-item>
+        <el-form-item prop="accessPath" label-width="auto">
+          <template #label>
+            <span>
+              <el-tooltip content="多个路径可按换行、逗号或分号分隔；为空表示允许访问所有接口路径" placement="top">
+                <el-icon><question-filled /></el-icon>
+              </el-tooltip>
+              允许访问路径
+            </span>
+          </template>
+          <el-input v-model="form.accessPath" type="textarea" :rows="4" placeholder="示例：/app/**" />
+        </el-form-item>
+        <el-form-item prop="ipWhitelist" label-width="auto">
+          <template #label>
+            <span>
+              <el-tooltip
+                content="支持精确IP、通配符和CIDR；多个规则可按换行、逗号或分号分隔；为空表示允许所有IP"
+                placement="top"
+              >
+                <el-icon><question-filled /></el-icon>
+              </el-tooltip>
+              IP白名单
+            </span>
+          </template>
+          <el-input
+            v-model="form.ipWhitelist"
+            type="textarea"
+            :rows="4"
+            placeholder="示例：127.0.0.1&#10;192.168.*.*&#10;10.0.0.0/24"
+          />
         </el-form-item>
         <el-form-item prop="activeTimeout" label-width="auto">
           <template #label>
@@ -144,28 +278,28 @@
 <script setup name="Client" lang="ts">
 import { listClient, getClient, delClient, addClient, updateClient, changeStatus } from '@/api/system/client';
 import { ClientVO, ClientQuery, ClientForm } from '@/api/system/client/types';
+import { useLoading } from '@/hooks/async/useLoading';
+import { useFormDialog } from '@/hooks/dialog/useFormDialog';
+import { useSearchReset } from '@/hooks/form/useSearchReset';
+import { useSearchToggle } from '@/hooks/form/useSearchToggle';
+import { useTableSelection } from '@/hooks/table/useTableSelection';
+import modal from '@/plugins/modal';
+import { useDict } from '@/utils/dict';
+import { download as requestDownload } from '@/utils/request';
 
-const { proxy } = getCurrentInstance() as ComponentInternalInstance;
-const { sys_normal_disable } = toRefs<any>(proxy?.useDict('sys_normal_disable'));
-const { sys_grant_type } = toRefs<any>(proxy?.useDict('sys_grant_type'));
-const { sys_device_type } = toRefs<any>(proxy?.useDict('sys_device_type'));
+const { sys_normal_disable } = toRefs<any>(useDict('sys_normal_disable'));
+const { sys_grant_type } = toRefs<any>(useDict('sys_grant_type'));
+const { sys_device_type } = toRefs<any>(useDict('sys_device_type'));
 
 const clientList = ref<ClientVO[]>([]);
-const buttonLoading = ref(false);
-const loading = ref(true);
-const showSearch = ref(true);
-const ids = ref<Array<string | number>>([]);
-const single = ref(true);
-const multiple = ref(true);
+const { loading, withLoading } = useLoading(true);
+const { loading: buttonLoading, withLoading: withButtonLoading } = useLoading();
+const { showSearch } = useSearchToggle();
+const { ids, single, multiple, handleSelectionChange } = useTableSelection<ClientVO>(item => item.id);
 const total = ref(0);
 
 const queryFormRef = ref<ElFormInstance>();
 const clientFormRef = ref<ElFormInstance>();
-
-const dialog = reactive<DialogOption>({
-  visible: false,
-  title: ''
-});
 
 const initFormData: ClientForm = {
   id: undefined,
@@ -174,9 +308,13 @@ const initFormData: ClientForm = {
   clientSecret: undefined,
   grantTypeList: undefined,
   deviceType: undefined,
+  accessPath: undefined,
+  accessPathList: undefined,
+  ipWhitelist: undefined,
+  ipWhitelistList: undefined,
   activeTimeout: undefined,
   timeout: undefined,
-  status: undefined
+  status: '0'
 };
 const data = reactive<PageData<ClientForm, ClientQuery>>({
   form: { ...initFormData },
@@ -188,6 +326,8 @@ const data = reactive<PageData<ClientForm, ClientQuery>>({
     clientSecret: undefined,
     grantType: undefined,
     deviceType: undefined,
+    accessPath: undefined,
+    ipWhitelist: undefined,
     activeTimeout: undefined,
     timeout: undefined,
     status: undefined
@@ -203,26 +343,46 @@ const data = reactive<PageData<ClientForm, ClientQuery>>({
 });
 
 const { queryParams, form, rules } = toRefs(data);
+const { dialog, resetForm, openDialog, showDialog, closeDialog } = useFormDialog({
+  form,
+  formRef: clientFormRef,
+  initialFormData: initFormData
+});
+const { resetQuery } = useSearchReset({
+  queryFormRef,
+  queryParams,
+  pageNumKey: 'pageNum',
+  afterReset: () => {
+    handleQuery();
+  }
+});
+
+const getRuleList = (ruleList?: string[], ruleValue?: string) => {
+  if (Array.isArray(ruleList) && ruleList.length) {
+    return ruleList;
+  }
+  if (!ruleValue) {
+    return [];
+  }
+  return ruleValue
+    .split(/[\n,;]+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+};
 
 /** 查询客户端管理列表 */
 const getList = async () => {
-  loading.value = true;
-  const res = await listClient(queryParams.value);
-  clientList.value = res.rows;
-  total.value = res.total;
-  loading.value = false;
+  await withLoading(async () => {
+    const res = await listClient(queryParams.value);
+    clientList.value = res.data?.rows;
+    total.value = res.data?.total;
+  });
 };
 
 /** 取消按钮 */
 const cancel = () => {
-  reset();
-  dialog.visible = false;
-};
-
-/** 表单重置 */
-const reset = () => {
-  form.value = { ...initFormData };
-  clientFormRef.value?.resetFields();
+  closeDialog();
+  resetForm();
 };
 
 /** 搜索按钮操作 */
@@ -231,65 +391,50 @@ const handleQuery = () => {
   getList();
 };
 
-/** 重置按钮操作 */
-const resetQuery = () => {
-  queryFormRef.value?.resetFields();
-  handleQuery();
-};
-
-/** 多选框选中数据 */
-const handleSelectionChange = (selection: ClientVO[]) => {
-  ids.value = selection.map((item) => item.id);
-  single.value = selection.length != 1;
-  multiple.value = !selection.length;
-};
-
 /** 新增按钮操作 */
 const handleAdd = () => {
-  reset();
-  dialog.visible = true;
-  dialog.title = '添加客户端管理';
+  openDialog('添加客户端管理');
 };
 
 /** 修改按钮操作 */
-const handleUpdate = async (row?: ClientVO) => {
-  reset();
-  const _id = row?.id || ids.value[0];
-  const res = await getClient(_id);
+const handleUpdate = async (row?: Partial<ClientVO>) => {
+  resetForm();
+  const clientId = row?.id || ids.value[0];
+  const res = await getClient(clientId);
   Object.assign(form.value, res.data);
-  dialog.visible = true;
-  dialog.title = '修改客户端管理';
+  showDialog('修改客户端管理');
 };
 
 /** 提交按钮 */
 const submitForm = () => {
   clientFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
-      buttonLoading.value = true;
-      if (form.value.id) {
-        await updateClient(form.value).finally(() => (buttonLoading.value = false));
-      } else {
-        await addClient(form.value).finally(() => (buttonLoading.value = false));
-      }
-      proxy?.$modal.msgSuccess('修改成功');
-      dialog.visible = false;
+      await withButtonLoading(async () => {
+        if (form.value.id) {
+          await updateClient(form.value);
+        } else {
+          await addClient(form.value);
+        }
+      });
+      modal.msgSuccess('修改成功');
+      closeDialog();
       await getList();
     }
   });
 };
 
 /** 删除按钮操作 */
-const handleDelete = async (row?: ClientVO) => {
-  const _ids = row?.id || ids.value;
-  await proxy?.$modal.confirm('是否确认删除客户端管理编号为"' + _ids + '"的数据项？').finally(() => (loading.value = false));
-  await delClient(_ids);
-  proxy?.$modal.msgSuccess('删除成功');
+const handleDelete = async (row?: Partial<ClientVO>) => {
+  const clientIds = row?.id || ids.value;
+  await modal.confirm('是否确认删除客户端管理编号为"' + clientIds + '"的数据项？');
+  await delClient(clientIds);
+  modal.msgSuccess('删除成功');
   await getList();
 };
 
 /** 导出按钮操作 */
 const handleExport = () => {
-  proxy?.download(
+  requestDownload(
     'system/client/export',
     {
       ...queryParams.value
@@ -299,12 +444,12 @@ const handleExport = () => {
 };
 
 /** 状态修改  */
-const handleStatusChange = async (row: ClientVO) => {
+const handleStatusChange = async (row: Partial<ClientVO>) => {
   const text = row.status === '0' ? '启用' : '停用';
   try {
-    await proxy?.$modal.confirm('确认要"' + text + '"吗?');
+    await modal.confirm('确认要"' + text + '"吗?');
     await changeStatus(row.clientId, row.status);
-    proxy?.$modal.msgSuccess(text + '成功');
+    modal.msgSuccess(text + '成功');
   } catch (err) {
     row.status = row.status === '0' ? '1' : '0';
   }
@@ -314,3 +459,31 @@ onMounted(() => {
   getList();
 });
 </script>
+
+<style lang="scss" scoped>
+.system-client-page {
+  :deep(.grant-type-tag) {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+  }
+
+  :deep(.grant-type-tag .el-tag) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .rule-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .rule-empty {
+    color: var(--el-text-color-secondary);
+  }
+}
+</style>

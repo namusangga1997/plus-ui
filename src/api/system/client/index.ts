@@ -1,6 +1,7 @@
+import type { ClientForm, ClientQuery, ClientVO } from '@/api/system/client/types';
+import type { PageResult } from '@/api/types';
+import type { AxiosPromise } from '@/utils/api-types';
 import request from '@/utils/request';
-import { AxiosPromise } from 'axios';
-import { ClientVO, ClientForm, ClientQuery } from '@/api/system/client/types';
 
 /**
  * 查询客户端管理列表
@@ -8,7 +9,7 @@ import { ClientVO, ClientForm, ClientQuery } from '@/api/system/client/types';
  * @returns {*}
  */
 
-export const listClient = (query?: ClientQuery): AxiosPromise<ClientVO[]> => {
+export const listClient = (query?: ClientQuery): AxiosPromise<PageResult<ClientVO>> => {
   return request({
     url: '/system/client/list',
     method: 'get',

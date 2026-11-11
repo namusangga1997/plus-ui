@@ -1,9 +1,10 @@
+import type { PageResult } from '@/api/types';
+import type { AxiosPromise } from '@/utils/api-types';
 import request from '@/utils/request';
-import { OnlineQuery, OnlineVO } from './types';
-import { AxiosPromise } from 'axios';
+import type { OnlineQuery, OnlineVO } from './types';
 
 // 查询在线用户列表
-export function list(query: OnlineQuery): AxiosPromise<OnlineVO[]> {
+export function list(query: OnlineQuery): AxiosPromise<PageResult<OnlineVO>> {
   return request({
     url: '/monitor/online/list',
     method: 'get',

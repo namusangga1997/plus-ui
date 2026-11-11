@@ -1,4 +1,5 @@
 import { LanguageEnum } from '@/enums/LanguageEnum';
+import { NavTypeEnum } from '@/enums/NavTypeEnum';
 
 const setting: DefaultSettings = {
   /**
@@ -18,9 +19,9 @@ const setting: DefaultSettings = {
   showSettings: true,
 
   /**
-   * 是否显示顶部导航
+   * 默认布局
    */
-  topNav: false,
+  navType: NavTypeEnum.LEFT,
 
   /**
    * 是否显示 tagsView
@@ -28,14 +29,19 @@ const setting: DefaultSettings = {
   tagsView: true,
 
   /**
+   * 持久化标签页
+   */
+  tagsViewPersist: false,
+
+  /**
    * 显示页签图标
    */
-  tagsIcon: false,
+  tagsIcon: true,
 
   /**
    * 是否固定头部
    */
-  fixedHeader: false,
+  fixedHeader: true,
 
   /**
    * 是否显示logo
@@ -45,7 +51,7 @@ const setting: DefaultSettings = {
   /**
    * 是否显示动态标题
    */
-  dynamicTitle: false,
+  dynamicTitle: true,
 
   /**
    * 是否开启动画 开启随机 关闭渐进渐出
@@ -70,6 +76,16 @@ const setting: DefaultSettings = {
   /**
    * 默认布局
    */
-  layout: ''
+  layout: '',
+
+  /**
+   * 页面圆角大小
+   */
+  radiusBase: 14,
+
+  /**
+   * 表格全高内部滚动
+   */
+  fullHeightTable: true
 };
 export default setting;

@@ -57,10 +57,12 @@
 
 <script setup lang="ts">
 import 'vue-cropper/dist/index.css';
-import { VueCropper } from 'vue-cropper';
-import { uploadAvatar } from '@/api/system/user';
-import { useUserStore } from '@/store/modules/user';
 import { UploadRawFile } from 'element-plus';
+import { VueCropper } from 'vue-cropper';
+import { uploadOss } from '@/api/system/oss';
+import { updateUserProfile } from '@/api/system/user';
+import modal from '@/plugins/modal';
+import { useUserStore } from '@/store/modules/user';
 
 interface Options {
   img: string | any; // 裁剪图片的地址
@@ -75,7 +77,6 @@ interface Options {
 }
 
 const userStore = useUserStore();
-const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
 const open = ref(false);
 const visible = ref(false);
@@ -121,7 +122,7 @@ const changeScale = (num: number) => {
 /** 上传预处理 */
 const beforeUpload = (file: UploadRawFile): any => {
   if (file.type.indexOf('image/') == -1) {
-    proxy?.$modal.msgError('文件格式错误，请上传图片类型,如：JPG，PNG后缀的文件。');
+    modal.msgError('文件格式错误，请上传图片类型,如：JPG，PNG后缀的文件。');
   } else {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -135,12 +136,13 @@ const beforeUpload = (file: UploadRawFile): any => {
 const uploadImg = async () => {
   cropper.value.getCropBlob(async (data: any) => {
     const formData = new FormData();
-    formData.append('avatarfile', data, options.fileName);
-    const res = await uploadAvatar(formData);
+    formData.append('file', data, options.fileName || 'avatar.png');
+    const res = await uploadOss(formData);
+    await updateUserProfile({ avatar: res.data.ossId });
     open.value = false;
-    options.img = res.data.imgUrl;
+    options.img = res.data.url;
     userStore.setAvatar(options.img);
-    proxy?.$modal.msgSuccess('修改成功');
+    modal.msgSuccess('修改成功');
     visible.value = false;
   });
 };
@@ -156,10 +158,26 @@ const closeDialog = () => {
 </script>
 
 <style lang="scss" scoped>
+.img-lg {
+  width: 120px;
+  height: 120px;
+}
+
 .user-info-head {
   position: relative;
   display: inline-block;
+  width: 120px;
   height: 120px;
+  cursor: pointer;
+}
+
+.user-info-head :deep(.img-circle) {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid var(--app-surface-border);
+  box-shadow: var(--app-shadow-sm);
 }
 
 .user-info-head:hover:after {
@@ -178,5 +196,16 @@ const closeDialog = () => {
   cursor: pointer;
   line-height: 110px;
   border-radius: 50%;
+}
+
+.avatar-upload-preview {
+  position: absolute;
+  top: 50%;
+  transform: translate(50%, -50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  box-shadow: var(--app-shadow-md);
+  overflow: hidden;
 }
 </style>

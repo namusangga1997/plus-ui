@@ -9,15 +9,24 @@
         @handleApprovalRecord="handleApprovalRecord"
         :buttonLoading="buttonLoading"
         :id="form.id"
+        :business-id="routeParams.id"
+        :instance-id="routeParams.instanceId"
         :status="form.status"
         :pageType="routeParams.type"
         :mode="false"
       />
     </el-card>
     <el-card shadow="never" style="height: 78vh; overflow-y: auto">
-      <el-form ref="leaveFormRef" v-loading="loading" :disabled="routeParams.type === 'view'" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="流程定义" v-if="routeParams.type === 'add'">
-          <el-select v-model="flowCode" placeholder="选择流程定义" style="width: 100%">
+      <el-form
+        ref="leaveFormRef"
+        v-loading="loading"
+        :disabled="routeParams.type === 'view'"
+        :model="form"
+        :rules="rules"
+        label-width="80px"
+      >
+        <el-form-item label="流程定义" v-if="routeParams.type === 'add' || routeParams.type === 'update'">
+          <el-select v-model="flowCode" :disabled="flowCodeLocked" placeholder="选择流程定义" style="width: 100%">
             <el-option v-for="item in flowCodeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
@@ -54,15 +63,20 @@
 </template>
 
 <script setup name="Leave" lang="ts">
+import { useRoute } from 'vue-router';
+import { listDefinition } from '@/api/workflow/definition';
 import { addLeave, getLeave, submitAndFlowStart, updateLeave } from '@/api/workflow/leave';
 import { LeaveForm, LeaveQuery, LeaveVO } from '@/api/workflow/leave/types';
 import { startWorkFlow } from '@/api/workflow/task';
-import SubmitVerify from '@/components/Process/submitVerify.vue';
-import ApprovalRecord from '@/components/Process/approvalRecord.vue';
-import ApprovalButton from '@/components/Process/approvalButton.vue';
-import { AxiosResponse } from 'axios';
 import { StartProcessBo } from '@/api/workflow/workflowCommon/types';
-const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+import ApprovalButton from '@/components/Process/approvalButton.vue';
+import ApprovalRecord from '@/components/Process/approvalRecord.vue';
+import SubmitVerify from '@/components/Process/submitVerify.vue';
+import modal from '@/plugins/modal';
+import tab from '@/plugins/tab';
+import router from '@/router';
+
+const route = useRoute();
 
 const buttonLoading = ref(false);
 const loading = ref(true);
@@ -87,34 +101,21 @@ const options = [
     label: '婚假'
   }
 ];
-const flowCodeOptions = [
-  {
-    value: 'leave1',
-    label: '请假申请-普通'
-  },
-  {
-    value: 'leave2',
-    label: '请假申请-排他网关'
-  },
-  {
-    value: 'leave3',
-    label: '请假申请-并行网关'
-  },
-  {
-    value: 'leave4',
-    label: '请假申请-会签'
-  },
-  {
-    value: 'leave5',
-    label: '请假申请-并行会签网关'
-  },
-  {
-    value: 'leave6',
-    label: '请假申请-排他并行会签'
+/** 可选流程定义：拉取真实已发布定义，避免写死早已不存在的流程编码 */
+const flowCodeOptions = ref<Array<{ value: string; label: string }>>([]);
+const loadFlowCodeOptions = async () => {
+  const resp = await listDefinition({ pageNum: 1, pageSize: 200, category: undefined });
+  flowCodeOptions.value = (resp.data?.rows ?? [])
+    .filter(item => item.isPublish === 1)
+    .map(item => ({ value: item.flowCode, label: `${item.flowName}（${item.flowCode}）` }));
+  if (!flowCodeOptions.value.some(item => item.value === flowCode.value)) {
+    flowCode.value = flowCodeOptions.value[0]?.value ?? '';
   }
-];
-// 自定义流程可不选择 直接填写flowCode 例如 'leave1'
-const flowCode = ref<string>('leave1');
+};
+// 下拉项来自已发布的流程定义
+const flowCode = ref<string>('');
+// 已有流程实例时沿用原流程，不允许在修改页切换
+const flowCodeLocked = ref(false);
 
 //提交组件
 const submitVerifyRef = ref<InstanceType<typeof SubmitVerify>>();
@@ -127,10 +128,10 @@ const submitFormData = ref<StartProcessBo>({
   businessId: '',
   flowCode: '',
   variables: {},
-  flowInstanceBizExtBo: {}
+  bizExt: {}
 });
 const taskVariables = ref<Record<string, any>>({});
-const flowInstanceBizExtBo = ref<Record<string, any>>({});
+const bizExt = ref<Record<string, any>>({});
 
 const initFormData: LeaveForm = {
   id: undefined,
@@ -182,6 +183,14 @@ const getInfo = () => {
     leaveTime.value = [];
     leaveTime.value.push(form.value.startDate);
     leaveTime.value.push(form.value.endDate);
+    if (routeParams.value.type === 'update') {
+      await loadFlowCodeOptions();
+      // 已有实例（撤销 / 退回 / 草稿已发起）沿用原流程定义；没有实例的草稿由用户自行选择
+      if (res.data.flowCode) {
+        flowCode.value = res.data.flowCode;
+        flowCodeLocked.value = true;
+      }
+    }
     loading.value = false;
     buttonLoading.value = false;
   });
@@ -190,7 +199,7 @@ const getInfo = () => {
 /** 提交按钮 */
 const submitForm = (status: string, mode: boolean) => {
   if (leaveTime.value.length === 0) {
-    proxy?.$modal.msgError('请假时间不能为空');
+    modal.msgError('请假时间不能为空');
     return;
   }
   try {
@@ -204,9 +213,9 @@ const submitForm = (status: string, mode: boolean) => {
           const res = await submitAndFlowStart(form.value).finally(() => (buttonLoading.value = false));
           form.value = res.data;
           buttonLoading.value = false;
-          proxy?.$modal.msgSuccess('操作成功');
-          proxy.$tab.closePage(proxy.$route);
-          proxy.$router.go(-1);
+          modal.msgSuccess('操作成功');
+          tab.closePage(route);
+          router.go(-1);
         } else {
           let res;
           if (form.value.id) {
@@ -217,9 +226,9 @@ const submitForm = (status: string, mode: boolean) => {
           form.value = res.data;
           if (status === 'draft') {
             buttonLoading.value = false;
-            proxy?.$modal.msgSuccess('暂存成功');
-            proxy.$tab.closePage(proxy.$route);
-            proxy.$router.go(-1);
+            modal.msgSuccess('暂存成功');
+            tab.closePage(route);
+            router.go(-1);
           } else {
             await handleStartWorkFlow(res.data);
           }
@@ -233,23 +242,26 @@ const submitForm = (status: string, mode: boolean) => {
 
 //提交申请
 const handleStartWorkFlow = async (data: LeaveForm) => {
+  if (!flowCode.value) {
+    buttonLoading.value = false;
+    modal.msgError('请选择流程定义');
+    return;
+  }
   try {
     submitFormData.value.flowCode = flowCode.value;
     submitFormData.value.businessId = data.id;
     //流程变量
     taskVariables.value = {
-      // leave2/6 使用的流程变量
-      leaveDays: data.leaveDays,
-      // leave4/5 使用的流程变量
-      userList: ['1', '3', '4']
+      // 网关示例的分支条件是 gt@@day|3 / lt@@day|3，变量名必须叫 day
+      day: data.leaveDays
     };
     //流程实例业务扩展字段
-    flowInstanceBizExtBo.value = {
+    bizExt.value = {
       businessTitle: '请假申请',
       businessCode: data.applyCode
     };
     submitFormData.value.variables = taskVariables.value;
-    submitFormData.value.flowInstanceBizExtBo = flowInstanceBizExtBo.value;
+    submitFormData.value.bizExt = bizExt.value;
     const resp = await startWorkFlow(submitFormData.value);
     if (submitVerifyRef.value) {
       buttonLoading.value = false;
@@ -261,12 +273,12 @@ const handleStartWorkFlow = async (data: LeaveForm) => {
 };
 //审批记录
 const handleApprovalRecord = () => {
-  approvalRecordRef.value.init(form.value.id);
+  approvalRecordRef.value?.init({ businessId: routeParams.value.id || form.value.id, instanceId: routeParams.value.instanceId });
 };
 //提交回调
 const submitCallback = async () => {
-  await proxy.$tab.closePage(proxy.$route);
-  proxy.$router.go(-1);
+  await tab.closePage(route);
+  router.go(-1);
 };
 //审批
 const approvalVerifyOpen = async () => {
@@ -275,10 +287,17 @@ const approvalVerifyOpen = async () => {
 
 onMounted(() => {
   nextTick(async () => {
-    routeParams.value = proxy.$route.query;
+    routeParams.value = route.query;
     reset();
     loading.value = false;
-    if (routeParams.value.type === 'update' || routeParams.value.type === 'view' || routeParams.value.type === 'approval') {
+    if (routeParams.value.type === 'add') {
+      loadFlowCodeOptions();
+    }
+    if (
+      routeParams.value.type === 'update' ||
+      routeParams.value.type === 'view' ||
+      routeParams.value.type === 'approval'
+    ) {
       getInfo();
     }
   });

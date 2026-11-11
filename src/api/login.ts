@@ -1,7 +1,8 @@
+import type { UserInfo } from '@/api/system/user/types';
+import type { AxiosPromise } from '@/utils/api-types';
+import { closePush } from '@/utils/push';
 import request from '@/utils/request';
-import { AxiosPromise } from 'axios';
-import { LoginData, LoginResult, VerifyCodeResult, TenantInfo } from './types';
-import { UserInfo } from '@/api/system/user/types';
+import type { LoginData, LoginResult, VerifyCodeResult } from './types';
 
 // pc端固定客户端授权id
 const clientId = import.meta.env.VITE_APP_CLIENT_ID;
@@ -51,9 +52,13 @@ export function register(data: any) {
  * 注销
  */
 export function logout() {
-  if (import.meta.env.VITE_APP_SSE === 'true') {
+  closePush();
+  if (
+    import.meta.env.VITE_APP_MESSAGE_ENABLED === 'true' &&
+    import.meta.env.VITE_APP_MESSAGE_TRANSPORT.toLowerCase() === 'sse'
+  ) {
     request({
-      url: '/resource/sse/close',
+      url: import.meta.env.VITE_APP_MESSAGE_PATH + '/close',
       method: 'get'
     });
   }
@@ -97,17 +102,6 @@ export function callback(data: LoginData): AxiosPromise<any> {
 export function getInfo(): AxiosPromise<UserInfo> {
   return request({
     url: '/system/user/getInfo',
-    method: 'get'
-  });
-}
-
-// 获取租户列表
-export function getTenantList(isToken: boolean): AxiosPromise<TenantInfo> {
-  return request({
-    url: '/auth/tenant/list',
-    headers: {
-      isToken: isToken
-    },
     method: 'get'
   });
 }

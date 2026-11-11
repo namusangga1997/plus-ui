@@ -1,13 +1,14 @@
+import type { PageResult } from '@/api/types';
+import type { FlowInstanceQuery, FlowInstanceVO } from '@/api/workflow/instance/types';
+import type { AxiosPromise } from '@/utils/api-types';
 import request from '@/utils/request';
-import { FlowInstanceQuery, FlowInstanceVO } from '@/api/workflow/instance/types';
-import { AxiosPromise } from 'axios';
 
 /**
  * 查询运行中实例列表
  * @param query
  * @returns {*}
  */
-export const pageByRunning = (query: FlowInstanceQuery): AxiosPromise<FlowInstanceVO[]> => {
+export const pageByRunning = (query: FlowInstanceQuery): AxiosPromise<PageResult<FlowInstanceVO>> => {
   return request({
     url: '/workflow/instance/pageByRunning',
     method: 'get',
@@ -20,7 +21,7 @@ export const pageByRunning = (query: FlowInstanceQuery): AxiosPromise<FlowInstan
  * @param query
  * @returns {*}
  */
-export const pageByFinish = (query: FlowInstanceQuery): AxiosPromise<FlowInstanceVO[]> => {
+export const pageByFinish = (query: FlowInstanceQuery): AxiosPromise<PageResult<FlowInstanceVO>> => {
   return request({
     url: '/workflow/instance/pageByFinish',
     method: 'get',
@@ -31,10 +32,11 @@ export const pageByFinish = (query: FlowInstanceQuery): AxiosPromise<FlowInstanc
 /**
  * 通过业务id获取历史流程图
  */
-export const flowHisTaskList = (businessId: string | number) => {
+export const flowHisTaskList = (ids: { businessId?: string | number; instanceId?: string | number }) => {
   return request({
-    url: `/workflow/instance/flowHisTaskList/${businessId}` + '?t' + Math.random(),
-    method: 'get'
+    url: '/workflow/instance/flowHisTaskList',
+    method: 'get',
+    params: ids
   });
 };
 
@@ -43,7 +45,7 @@ export const flowHisTaskList = (businessId: string | number) => {
  * @param query
  * @returns {*}
  */
-export const pageByCurrent = (query: FlowInstanceQuery): AxiosPromise<FlowInstanceVO[]> => {
+export const pageByCurrent = (query: FlowInstanceQuery): AxiosPromise<PageResult<FlowInstanceVO>> => {
   return request({
     url: '/workflow/instance/pageByCurrent',
     method: 'get',

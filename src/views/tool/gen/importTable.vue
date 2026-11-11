@@ -1,10 +1,9 @@
 <template>
-  <!-- 导入表 -->
   <el-dialog v-model="visible" title="导入表" width="1100px" top="5vh" append-to-body>
     <el-form ref="queryFormRef" :model="queryParams" :inline="true">
       <el-form-item label="数据源" prop="dataName">
         <el-select v-model="queryParams.dataName" filterable placeholder="请选择/输入数据源名称">
-          <el-option v-for="item in dataNameList" :key="item" :label="item" :value="item"> </el-option>
+          <el-option v-for="item in dataNameList" :key="item" :label="item" :value="item"></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="表名称" prop="tableName">
@@ -19,14 +18,27 @@
       </el-form-item>
     </el-form>
     <el-row>
-      <el-table ref="tableRef" border :data="dbTableList" height="260px" @row-click="clickRow" @selection-change="handleSelectionChange">
+      <el-table
+        ref="tableRef"
+        border
+        :data="dbTableList"
+        height="260px"
+        @row-click="clickRow"
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="55"></el-table-column>
         <el-table-column prop="tableName" label="表名称" :show-overflow-tooltip="true"></el-table-column>
         <el-table-column prop="tableComment" label="表描述" :show-overflow-tooltip="true"></el-table-column>
         <el-table-column prop="createTime" label="创建时间"></el-table-column>
         <el-table-column prop="updateTime" label="更新时间"></el-table-column>
       </el-table>
-      <pagination v-show="total > 0" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" :total="total" @pagination="getList" />
+      <pagination
+        v-show="total > 0"
+        v-model:page="queryParams.pageNum"
+        v-model:limit="queryParams.pageSize"
+        :total="total"
+        @pagination="getList"
+      />
     </el-row>
     <template #footer>
       <div class="dialog-footer">
@@ -40,12 +52,12 @@
 <script setup lang="ts">
 import { listDbTable, importTable, getDataNames } from '@/api/tool/gen';
 import { DbTableQuery, DbTableVO } from '@/api/tool/gen/types';
+import modal from '@/plugins/modal';
 
 const total = ref(0);
 const visible = ref(false);
 const tables = ref<Array<string>>([]);
 const dbTableList = ref<Array<DbTableVO>>([]);
-const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
 const tableRef = ref<ElTableInstance>();
 const queryFormRef = ref<ElFormInstance>();
@@ -63,7 +75,7 @@ const emit = defineEmits(['ok']);
 
 /** 查询参数列表 */
 const show = (dataName: string) => {
-  getDataNames().then((res) => {
+  getDataNames().then(res => {
     if (res.code == 200) {
       dataNameList.value = res.data;
       if (dataName) {
@@ -83,13 +95,13 @@ const clickRow = (row: DbTableVO) => {
 };
 /** 多选框选中数据 */
 const handleSelectionChange = (selection: DbTableVO[]) => {
-  tables.value = selection.map((item) => item.tableName);
+  tables.value = selection.map(item => item.tableName);
 };
 /** 查询表数据 */
 const getList = async () => {
   const res = await listDbTable(queryParams);
-  dbTableList.value = res.rows;
-  total.value = res.total;
+  dbTableList.value = res.data?.rows;
+  total.value = res.data?.total;
 };
 /** 搜索按钮操作 */
 const handleQuery = () => {
@@ -105,11 +117,14 @@ const resetQuery = () => {
 const handleImportTable = async () => {
   const tableNames = tables.value.join(',');
   if (tableNames == '') {
-    proxy?.$modal.msgError('请选择要导入的表');
+    modal.msgError('请选择要导入的表');
     return;
   }
-  const res = await importTable({ tables: tableNames, dataName: queryParams.dataName });
-  proxy?.$modal.msgSuccess(res.msg);
+  const res = await importTable({
+    tables: tableNames,
+    dataName: queryParams.dataName
+  });
+  modal.msgSuccess(res.msg ?? '');
   if (res.code === 200) {
     visible.value = false;
     emit('ok');
